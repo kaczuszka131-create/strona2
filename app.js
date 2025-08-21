@@ -26,6 +26,17 @@ function initMap() {
     }).addTo(map);
 }
 
+// --- Funkcja liczenia dystansu ---
+function calculateDistance(lat1, lng1, lat2, lng2) {
+    const R = 6371000; // promień Ziemi w metrach
+    const toRad = x => x * Math.PI / 180;
+    const dLat = toRad(lat2-lat1);
+    const dLon = toRad(lng2-lng1);
+    const a = Math.sin(dLat/2)**2 + Math.cos(toRad(lat1))*Math.cos(toRad(lat2))*Math.sin(dLon/2)**2;
+    const c = 2*Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+    return Math.round(R * c); // w metrach
+}
+
 // --- Pobieranie danych jednostki ---
 async function fetchUnitData() {
     try {
@@ -34,36 +45,37 @@ async function fetchUnitData() {
             fetch(`${SERVER_URL}/reports`)
         ]);
 
-        const [unitsData, reportsData] = await Promise.all([
-            unitsRes.json(),
-            reportsRes.json()
-        ]);
-
+        const [unitsData, reportsData] = await Promise.all([unitsRes.json(), reportsRes.json()]);
         const unit = unitsData[unitId];
+
         if (!unit) {
-            console.warn('Nie znaleziono jednostki o podanym ID');
             document.getElementById('unitStatus').innerText = 'Brak danych';
             document.getElementById('assignedReport').innerText = 'Brak';
+            document.getElementById('distance').innerText = '0 m';
+            document.getElementById('reportTier').innerText = '-';
+            document.getElementById('reportContact').innerText = '-';
+            document.getElementById('reportDesc').innerText = '-';
             if (unitMarker) unitMarker.remove();
             if (reportMarker) reportMarker.remove();
             return;
         }
 
-        document.getElementById('unitStatus').innerText = unit.status || 'Brak danych';
+        // --- Status kolorowy ---
+        const statusEl = document.getElementById('unitStatus');
+        statusEl.innerText = unit.status || 'Brak danych';
+        statusEl.className = '';
+        if (unit.status === 'Dostępny') statusEl.classList.add('available');
+        else if (unit.status === 'Zajęty') statusEl.classList.add('busy');
+        else if (unit.status === 'W drodze') statusEl.classList.add('onroute');
 
         // --- Marker jednostki ---
         if (unit.lat != null && unit.lng != null) {
-            const unitLatLng = [unit.lat, unit.lng];
+            const latlng = [unit.lat, unit.lng];
             if (!unitMarker) {
-                unitMarker = L.marker(unitLatLng, { 
-                    icon: L.icon({
-                        iconUrl: 'https://cdn-icons-png.flaticon.com/512/149/149071.png',
-                        iconSize: [32,32]
-                    })
+                unitMarker = L.marker(latlng, {
+                    icon: L.icon({ iconUrl: 'https://cdn-icons-png.flaticon.com/512/149/149071.png', iconSize: [32,32] })
                 }).addTo(map).bindPopup(`Jednostka: ${unit.name}<br>Status: ${unit.status}`);
-            } else {
-                unitMarker.setLatLng(unitLatLng).setPopupContent(`Jednostka: ${unit.name}<br>Status: ${unit.status}`);
-            }
+            } else unitMarker.setLatLng(latlng).setPopupContent(`Jednostka: ${unit.name}<br>Status: ${unit.status}`);
         }
 
         // --- Szukamy przypisanego zgłoszenia ---
@@ -73,43 +85,20 @@ async function fetchUnitData() {
 
         if (report && report.lat != null && report.lng != null) {
             document.getElementById('assignedReport').innerText = report.id;
+            document.getElementById('reportTier').innerText = report.tier || '-';
+            document.getElementById('reportContact').innerText = report.contact || '-';
+            document.getElementById('reportDesc').innerText = report.description || '-';
 
             const reportLatLng = [report.lat, report.lng];
             if (!reportMarker) {
                 reportMarker = L.marker(reportLatLng, {
-                    icon: L.icon({
-                        iconUrl: 'https://cdn-icons-png.flaticon.com/512/684/684908.png',
-                        iconSize: [32,32]
-                    })
+                    icon: L.icon({ iconUrl: 'https://cdn-icons-png.flaticon.com/512/684/684908.png', iconSize: [32,32] })
                 }).addTo(map).bindPopup(`
                     Zgłoszenie #${report.id}<br>
                     Opis: ${report.description}<br>
                     Status: ${report.status}<br>
                     Kontakt: ${report.contact}
                 `);
-            } else {
-                reportMarker.setLatLng(reportLatLng).setPopupContent(`
-                    Zgłoszenie #${report.id}<br>
-                    Opis: ${report.description}<br>
-                    Status: ${report.status}<br>
-                    Kontakt: ${report.contact}
-                `);
-            }
-
-            // Dopasowanie widoku mapy do jednostki i zgłoszenia
-            if (unit.lat != null && unit.lng != null) {
-                const bounds = L.latLngBounds([ [unit.lat, unit.lng], [report.lat, report.lng] ]);
-                map.fitBounds(bounds, { padding: [50, 50] });
-            } else {
-                map.setView(reportLatLng, 14);
-            }
-
-        } else {
-            document.getElementById('assignedReport').innerText = 'Brak';
-            if (reportMarker) reportMarker.remove();
-        }
-
-    } catch (err) {
-        console.error('Błąd pobierania danych jednostki:', err);
-    }
-}
+            } else reportMarker.setLatLng(reportLatLng).setPopupContent(`
+                Zgłoszenie #${report.id}<br>
+                Opis: ${report.description}<br
