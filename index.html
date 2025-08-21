@@ -6,32 +6,26 @@
 <title>Dyspozytor – Jednostka</title>
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
 <link rel="stylesheet" href="style.css">
-<link rel="manifest" href="manifest.json">
-<meta name="theme-color" content="#007bff">
 </head>
 <body>
 
-<div id="loginScreen">
+<!-- Ekran logowania -->
+<div id="loginScreen" class="screen">
     <h2>Logowanie jednostki</h2>
     <input type="text" id="unitIdInput" placeholder="Wpisz ID jednostki">
     <button id="loginBtn">Zaloguj</button>
 </div>
 
-<div id="unitScreen">
-    <div id="unitInfo">
-        <div>
-            <strong>Jednostka:</strong> <span id="unitName"></span> |
-            <strong>Status:</strong> <span id="unitStatus"></span>
-        </div>
-        <div>
-            <strong>Przypisana do zgłoszenia:</strong> <span id="assignedReport">Brak</span> |
-            <strong>Dystans:</strong> <span id="distance">0 m</span>
-        </div>
-        <div>
-            <strong>Tier:</strong> <span id="reportTier">-</span> |
-            <strong>Kontakt:</strong> <span id="reportContact">-</span> |
-            <strong>Opis:</strong> <span id="reportDesc">-</span>
-        </div>
+<!-- Ekran jednostki -->
+<div id="unitScreen" class="screen" style="display:none;">
+    <div id="unitHeader">
+        <div><strong>Jednostka:</strong> <span id="unitName"></span></div>
+        <div><strong>Status:</strong> <span id="unitStatus"></span></div>
+        <div><strong>Raport:</strong> <span id="assignedReport">Brak</span></div>
+        <div><strong>Dystans:</strong> <span id="distance">0 m</span></div>
+        <div><strong>Tier:</strong> <span id="reportTier">-</span></div>
+        <div><strong>Kontakt:</strong> <span id="reportContact">-</span></div>
+        <div><strong>Opis:</strong> <span id="reportDesc">-</span></div>
     </div>
     <div id="map"></div>
 </div>
