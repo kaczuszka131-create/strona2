@@ -1,11 +1,11 @@
 body {
     margin: 0;
     font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-    background: #121212;  /* ciemne tło dla „policyjnego” stylu */
-    color: #f5f7fa;
+    background: #0b1d3a; /* policyjny granat */
+    color: #fff;
 }
 
-/* Logowanie */
+/* Logowanie i dashboard */
 .screen {
     display: flex;
     flex-direction: column;
@@ -26,22 +26,22 @@ body {
 }
 
 #loginScreen button {
-    background: #007bff;
+    background: #1a73e8;
     color: white;
     border: none;
     cursor: pointer;
 }
-#loginScreen button:hover { background: #0056b3; }
+#loginScreen button:hover { background: #155ab6; }
 
-/* Panel jednostki */
+/* Panel informacji jednostki */
 #unitHeader {
     width: 100%;
-    background: #1e1e1e;
+    background: #12254c;
     padding: 12px;
     display: flex;
     flex-wrap: wrap;
     justify-content: space-around;
-    box-shadow: 0 2px 5px rgba(0,0,0,0.6);
+    box-shadow: 0 2px 8px rgba(0,0,0,0.7);
     font-size: 16px;
 }
 
@@ -50,19 +50,20 @@ body {
     min-width: 120px;
 }
 
-/* Kolory statusu */
+/* Status kolorowy */
 .available { color: #4CAF50; font-weight: bold; }
 .busy { color: #f44336; font-weight: bold; }
 .onroute { color: #FFC107; font-weight: bold; }
 
-/* Mapa na całą resztę ekranu */
+/* Mapa */
 #map {
     flex: 1;
     width: 100%;
-    height: calc(100vh - 120px); /* dopasowane do nagłówka */
+    height: calc(100vh - 150px); /* zostawia miejsce na nagłówek */
+    border-top: 2px solid #1a73e8;
 }
 
-/* Responsywność na małe ekrany */
+/* Responsywność */
 @media (max-width: 480px) {
     #unitHeader {
         font-size: 14px;
