@@ -14,7 +14,7 @@ document.getElementById('loginBtn').addEventListener('click', () => {
 
     initMap();
     fetchUnitData();
-    setInterval(fetchUnitData, 5000);
+    setInterval(fetchUnitData, 5000); // odświeżanie co 5s
 });
 
 // --- Inicjalizacja mapy ---
@@ -30,11 +30,11 @@ function initMap() {
 function calculateDistance(lat1, lng1, lat2, lng2) {
     const R = 6371000; // promień Ziemi w metrach
     const toRad = x => x * Math.PI / 180;
-    const dLat = toRad(lat2-lat1);
-    const dLon = toRad(lng2-lng1);
-    const a = Math.sin(dLat/2)**2 + Math.cos(toRad(lat1))*Math.cos(toRad(lat2))*Math.sin(dLon/2)**2;
-    const c = 2*Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
-    return Math.round(R * c); // w metrach
+    const dLat = toRad(lat2 - lat1);
+    const dLon = toRad(lng2 - lng1);
+    const a = Math.sin(dLat/2)**2 + Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon/2)**2;
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    return Math.round(R * c);
 }
 
 // --- Pobieranie danych jednostki ---
@@ -99,6 +99,31 @@ async function fetchUnitData() {
                     Status: ${report.status}<br>
                     Kontakt: ${report.contact}
                 `);
-            } else reportMarker.setLatLng(reportLatLng).setPopupContent(`
-                Zgłoszenie #${report.id}<br>
-                Opis: ${report.description}<br
+            } else {
+                reportMarker.setLatLng(reportLatLng).setPopupContent(`
+                    Zgłoszenie #${report.id}<br>
+                    Opis: ${report.description}<br>
+                    Status: ${report.status}<br>
+                    Kontakt: ${report.contact}
+                `);
+            }
+
+            // --- Oblicz dystans ---
+            const dist = calculateDistance(unit.lat, unit.lng, report.lat, report.lng);
+            document.getElementById('distance').innerText = `${dist} m`;
+
+            // --- Opcjonalnie ustaw widok mapy ---
+            map.setView(reportLatLng, 14);
+        } else {
+            document.getElementById('assignedReport').innerText = 'Brak';
+            document.getElementById('reportTier').innerText = '-';
+            document.getElementById('reportContact').innerText = '-';
+            document.getElementById('reportDesc').innerText = '-';
+            document.getElementById('distance').innerText = '0 m';
+            if (reportMarker) reportMarker.remove();
+        }
+
+    } catch (err) {
+        console.error('Błąd pobierania danych jednostki:', err);
+    }
+}
