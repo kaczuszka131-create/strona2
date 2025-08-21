@@ -3,6 +3,21 @@ let unitId = null;
 let map, unitMarker, reportMarker;
 let previousAssignedReport = null;
 
+// --- Rejestracja Service Workera ---
+async function registerServiceWorker() {
+    if ('serviceWorker' in navigator && 'PushManager' in window) {
+        try {
+            await navigator.serviceWorker.register('/sw.js');
+            console.log('Service Worker zarejestrowany');
+        } catch(err) {
+            console.error('Błąd rejestracji SW:', err);
+        }
+    } else {
+        console.warn('Push API lub Service Worker nie jest wspierany');
+    }
+}
+registerServiceWorker();
+
 // --- Logowanie ---
 document.getElementById('loginBtn').addEventListener('click', () => {
     const input = document.getElementById('unitIdInput').value.trim();
@@ -45,13 +60,11 @@ async function fetchUnitData() {
             fetch(`${SERVER_URL}/units`),
             fetch(`${SERVER_URL}/reports`)
         ]);
-
         const [unitsData, reportsData] = await Promise.all([unitsRes.json(), reportsRes.json()]);
         const unit = unitsData[unitId];
-
         if (!unit) return resetUnitDisplay();
 
-        // --- Status kolorowy ---
+        // Status kolorowy
         const statusEl = document.getElementById('unitStatus');
         statusEl.innerText = unit.status || 'Brak danych';
         statusEl.className = '';
@@ -59,7 +72,7 @@ async function fetchUnitData() {
         else if (unit.status === 'Zajęty') statusEl.classList.add('busy');
         else if (unit.status === 'W drodze') statusEl.classList.add('onroute');
 
-        // --- Marker jednostki jako niebieska kropka ---
+        // Marker jednostki
         if (unit.lat != null && unit.lng != null) {
             const latlng = [unit.lat, unit.lng];
             if (!unitMarker) {
@@ -71,16 +84,22 @@ async function fetchUnitData() {
             }
         }
 
-        // --- Szukamy przypisanego zgłoszenia ---
-        let report = unit.assignedReportId ? reportsData.find(r => r.id === unit.assignedReportId) 
-                                           : reportsData.find(r => r.assignedUnit === unitId);
+        // Szukamy zgłoszenia
+        let report = unit.assignedReportId ? reportsData.find(r => r.id===unit.assignedReportId) 
+                                           : reportsData.find(r => r.assignedUnit===unitId);
 
-        // --- Wibracja przy zmianie przypisania ---
+        // Powiadomienie jeśli zmiana przypisania
         if (report?.id !== previousAssignedReport) {
-            if (navigator.vibrate) navigator.vibrate(200);
             previousAssignedReport = report?.id || null;
+            if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
+                navigator.serviceWorker.controller.postMessage({
+                    type: 'NEW_ASSIGNMENT',
+                    reportId: report?.id || null
+                });
+            }
         }
 
+        // Wyświetlanie zgłoszenia
         if (report && report.lat != null && report.lng != null) {
             document.getElementById('assignedReport').innerText = report.id;
             document.getElementById('reportTier').innerText = report.tier || '-';
@@ -88,8 +107,6 @@ async function fetchUnitData() {
             document.getElementById('reportDesc').innerText = report.description || '-';
 
             const reportLatLng = [report.lat, report.lng];
-
-            // --- Kolor wg tieru ---
             let reportColor = 'green';
             if (report.tier === 2) reportColor = 'orange';
             else if (report.tier === 3) reportColor = 'red';
@@ -104,17 +121,16 @@ async function fetchUnitData() {
                             .setPopupContent(`Zgłoszenie #${report.id}<br>Opis: ${report.description}<br>Status: ${report.status}<br>Kontakt: ${report.contact}`);
             }
 
-            // --- Dystans ---
+            // Dystans
             const dist = calculateDistance(unit.lat, unit.lng, report.lat, report.lng);
             document.getElementById('distance').innerText = `${dist} m`;
-
             map.setView(reportLatLng, 14);
         } else resetReportDisplay();
 
     } catch(err) { console.error('Błąd pobierania danych jednostki:', err); }
 }
 
-// --- Reset jednostki i zgłoszenia ---
+// Reset jednostki i zgłoszenia
 function resetUnitDisplay() {
     document.getElementById('unitStatus').innerText='Brak danych';
     document.getElementById('assignedReport').innerText='Brak';
