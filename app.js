@@ -44,57 +44,69 @@ async function fetchUnitData() {
             console.warn('Nie znaleziono jednostki o podanym ID');
             document.getElementById('unitStatus').innerText = 'Brak danych';
             document.getElementById('assignedReport').innerText = 'Brak';
-            if (unitMarker) map.removeLayer(unitMarker);
-            if (reportMarker) map.removeLayer(reportMarker);
+            if (unitMarker) unitMarker.remove();
+            if (reportMarker) reportMarker.remove();
             return;
         }
 
         document.getElementById('unitStatus').innerText = unit.status || 'Brak danych';
 
         // --- Marker jednostki ---
-        if (unit.lat && unit.lng) {
-            if (unitMarker) map.removeLayer(unitMarker);
-            unitMarker = L.marker([unit.lat, unit.lng], { 
-                icon: L.icon({
-                    iconUrl: 'https://cdn-icons-png.flaticon.com/512/149/149071.png',
-                    iconSize: [32,32]
-                })
-            }).addTo(map)
-              .bindPopup(`Jednostka: ${unit.name}<br>Status: ${unit.status}`)
-              .openPopup();
+        if (unit.lat != null && unit.lng != null) {
+            const unitLatLng = [unit.lat, unit.lng];
+            if (!unitMarker) {
+                unitMarker = L.marker(unitLatLng, { 
+                    icon: L.icon({
+                        iconUrl: 'https://cdn-icons-png.flaticon.com/512/149/149071.png',
+                        iconSize: [32,32]
+                    })
+                }).addTo(map).bindPopup(`Jednostka: ${unit.name}<br>Status: ${unit.status}`);
+            } else {
+                unitMarker.setLatLng(unitLatLng).setPopupContent(`Jednostka: ${unit.name}<br>Status: ${unit.status}`);
+            }
         }
 
         // --- Szukamy przypisanego zgłoszenia ---
         let report = null;
-        if (unit.assignedReportId) {
-            report = reportsData.find(r => r.id === unit.assignedReportId);
-        }
-        if (!report) {
-            report = reportsData.find(r => r.assignedUnit === unitId);
-        }
+        if (unit.assignedReportId) report = reportsData.find(r => r.id === unit.assignedReportId);
+        if (!report) report = reportsData.find(r => r.assignedUnit === unitId);
 
-        if (report) {
+        if (report && report.lat != null && report.lng != null) {
             document.getElementById('assignedReport').innerText = report.id;
 
-            if (reportMarker) map.removeLayer(reportMarker);
-            reportMarker = L.marker([report.lat, report.lng], {
-                icon: L.icon({
-                    iconUrl: 'https://cdn-icons-png.flaticon.com/512/684/684908.png',
-                    iconSize: [32,32]
-                })
-            }).addTo(map)
-              .bindPopup(`
-                Zgłoszenie #${report.id}<br>
-                Opis: ${report.description}<br>
-                Status: ${report.status}<br>
-                Kontakt: ${report.contact}
-              `)
-              .openPopup();
+            const reportLatLng = [report.lat, report.lng];
+            if (!reportMarker) {
+                reportMarker = L.marker(reportLatLng, {
+                    icon: L.icon({
+                        iconUrl: 'https://cdn-icons-png.flaticon.com/512/684/684908.png',
+                        iconSize: [32,32]
+                    })
+                }).addTo(map).bindPopup(`
+                    Zgłoszenie #${report.id}<br>
+                    Opis: ${report.description}<br>
+                    Status: ${report.status}<br>
+                    Kontakt: ${report.contact}
+                `);
+            } else {
+                reportMarker.setLatLng(reportLatLng).setPopupContent(`
+                    Zgłoszenie #${report.id}<br>
+                    Opis: ${report.description}<br>
+                    Status: ${report.status}<br>
+                    Kontakt: ${report.contact}
+                `);
+            }
 
-            map.setView([report.lat, report.lng], 14);
+            // Dopasowanie widoku mapy do jednostki i zgłoszenia
+            if (unit.lat != null && unit.lng != null) {
+                const bounds = L.latLngBounds([ [unit.lat, unit.lng], [report.lat, report.lng] ]);
+                map.fitBounds(bounds, { padding: [50, 50] });
+            } else {
+                map.setView(reportLatLng, 14);
+            }
+
         } else {
             document.getElementById('assignedReport').innerText = 'Brak';
-            if (reportMarker) map.removeLayer(reportMarker);
+            if (reportMarker) reportMarker.remove();
         }
 
     } catch (err) {
