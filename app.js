@@ -16,7 +16,18 @@ async function registerServiceWorker() {
         console.warn('Push API lub Service Worker nie jest wspierany');
     }
 }
-registerServiceWorker();
+
+// --- Funkcja do testowania połączenia ---
+async function testConnection() {
+    try {
+        const response = await fetch(SERVER_URL);
+        console.log('Test połączenia:', response.status);
+        return response.ok;
+    } catch (error) {
+        console.error('Błąd testu połączenia:', error);
+        return false;
+    }
+}
 
 // --- Logowanie ---
 document.getElementById('loginBtn').addEventListener('click', () => {
@@ -36,7 +47,7 @@ document.getElementById('loginBtn').addEventListener('click', () => {
 // --- Inicjalizacja mapy ---
 function initMap() {
     map = L.map('map').setView([52.0, 19.0], 6);
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}/.png', {
         maxZoom: 19,
         attribution: '© OpenStreetMap'
     }).addTo(map);
@@ -56,21 +67,46 @@ function calculateDistance(lat1, lng1, lat2, lng2) {
 // --- Pobieranie danych jednostki ---
 async function fetchUnitData() {
     try {
+        console.log('Pobieranie danych dla jednostki:', unitId);
+        
         const [unitsRes, reportsRes] = await Promise.all([
-            fetch(`${SERVER_URL}/units`),
-            fetch(`${SERVER_URL}/reports`)
+            fetch(`${SERVER_URL}/units`).catch(err => {
+                console.error('Błąd pobierania jednostek:', err);
+                return { ok: false };
+            }),
+            fetch(`${SERVER_URL}/reports`).catch(err => {
+                console.error('Błąd pobierania zgłoszeń:', err);
+                return { ok: false };
+            })
         ]);
-        const [unitsData, reportsData] = await Promise.all([unitsRes.json(), reportsRes.json()]);
+
+        if (!unitsRes.ok || !reportsRes.ok) {
+            console.error('Błąd odpowiedzi serwera');
+            resetUnitDisplay();
+            return;
+        }
+
+        const [unitsData, reportsData] = await Promise.all([
+            unitsRes.json(),
+            reportsRes.json()
+        ]);
+        
+        console.log('Otrzymane dane jednostek:', unitsData);
+        console.log('Otrzymane zgłoszenia:', reportsData);
+
         const unit = unitsData[unitId];
-        if (!unit) return resetUnitDisplay();
+        if (!unit) {
+            console.log('Jednostka nie znaleziona:', unitId);
+            return resetUnitDisplay();
+        }
 
         // Status kolorowy
         const statusEl = document.getElementById('unitStatus');
         statusEl.innerText = unit.status || 'Brak danych';
         statusEl.className = '';
-        if (unit.status === 'Dostępny') statusEl.classList.add('available');
-        else if (unit.status === 'Zajęty') statusEl.classList.add('busy');
-        else if (unit.status === 'W drodze') statusEl.classList.add('onroute');
+        if (unit.status === 'available') statusEl.classList.add('available');
+        else if (unit.status === 'unavailable') statusEl.classList.add('busy');
+        else if (unit.status === 'on-intervention') statusEl.classList.add('onroute');
 
         // Marker jednostki
         if (unit.lat != null && unit.lng != null) {
@@ -84,17 +120,22 @@ async function fetchUnitData() {
             }
         }
 
-        // Szukamy zgłoszenia
-        let report = unit.assignedReportId ? reportsData.find(r => r.id===unit.assignedReportId) 
-                                           : reportsData.find(r => r.assignedUnit===unitId);
+        // Szukamy zgłoszenia przypisanego do jednostki
+        let report = null;
+        for (const r of reportsData) {
+            if (r.assignedUnits && r.assignedUnits.includes(unitId)) {
+                report = r;
+                break;
+            }
+        }
 
         // Powiadomienie jeśli zmiana przypisania
         if (report?.id !== previousAssignedReport) {
             previousAssignedReport = report?.id || null;
-            if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
+            if (report && 'serviceWorker' in navigator && navigator.serviceWorker.controller) {
                 navigator.serviceWorker.controller.postMessage({
                     type: 'NEW_ASSIGNMENT',
-                    reportId: report?.id || null
+                    reportId: report.id
                 });
             }
         }
@@ -108,8 +149,8 @@ async function fetchUnitData() {
 
             const reportLatLng = [report.lat, report.lng];
             let reportColor = 'green';
-            if (report.tier === 2) reportColor = 'orange';
-            else if (report.tier === 3) reportColor = 'red';
+            if (report.tier == 2) reportColor = 'orange';
+            else if (report.tier == 3) reportColor = 'red';
 
             if (!reportMarker) {
                 reportMarker = L.circleMarker(reportLatLng, { radius: 8, color: reportColor, fillColor: reportColor, fillOpacity: 0.8 })
@@ -122,12 +163,19 @@ async function fetchUnitData() {
             }
 
             // Dystans
-            const dist = calculateDistance(unit.lat, unit.lng, report.lat, report.lng);
-            document.getElementById('distance').innerText = `${dist} m`;
-            map.setView(reportLatLng, 14);
-        } else resetReportDisplay();
+            if (unit.lat && unit.lng) {
+                const dist = calculateDistance(unit.lat, unit.lng, report.lat, report.lng);
+                document.getElementById('distance').innerText = `${dist} m`;
+                map.setView(reportLatLng, 14);
+            }
+        } else {
+            resetReportDisplay();
+        }
 
-    } catch(err) { console.error('Błąd pobierania danych jednostki:', err); }
+    } catch(err) { 
+        console.error('Błąd pobierania danych jednostki:', err);
+        resetUnitDisplay();
+    }
 }
 
 // Reset jednostki i zgłoszenia
@@ -138,8 +186,14 @@ function resetUnitDisplay() {
     document.getElementById('reportTier').innerText='-';
     document.getElementById('reportContact').innerText='-';
     document.getElementById('reportDesc').innerText='-';
-    if (unitMarker) unitMarker.remove();
-    if (reportMarker) reportMarker.remove();
+    if (unitMarker) {
+        map.removeLayer(unitMarker);
+        unitMarker = null;
+    }
+    if (reportMarker) {
+        map.removeLayer(reportMarker);
+        reportMarker = null;
+    }
 }
 
 function resetReportDisplay() {
@@ -148,5 +202,20 @@ function resetReportDisplay() {
     document.getElementById('reportTier').innerText='-';
     document.getElementById('reportContact').innerText='-';
     document.getElementById('reportDesc').innerText='-';
-    if (reportMarker) reportMarker.remove();
+    if (reportMarker) {
+        map.removeLayer(reportMarker);
+        reportMarker = null;
+    }
 }
+
+// --- Inicjalizacja aplikacji ---
+document.addEventListener('DOMContentLoaded', async () => {
+    // Zarejestruj Service Workera
+    await registerServiceWorker();
+    
+    // Testuj połączenie
+    const connected = await testConnection();
+    if (!connected) {
+        alert('Brak połączenia z serwerem. Sprawdź adres URL.');
+    }
+});
