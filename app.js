@@ -14,7 +14,7 @@ document.getElementById('loginBtn').addEventListener('click', () => {
 
     initMap();
     fetchUnitData();
-    setInterval(fetchUnitData, 5000); // odświeżanie co 5s
+    setInterval(fetchUnitData, 5000);
 });
 
 // --- Inicjalizacja mapy ---
@@ -26,14 +26,14 @@ function initMap() {
     }).addTo(map);
 }
 
-// --- Funkcja liczenia dystansu ---
+// --- Obliczanie dystansu ---
 function calculateDistance(lat1, lng1, lat2, lng2) {
-    const R = 6371000; // promień Ziemi w metrach
-    const toRad = x => x * Math.PI / 180;
-    const dLat = toRad(lat2 - lat1);
-    const dLon = toRad(lng2 - lng1);
-    const a = Math.sin(dLat/2)**2 + Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon/2)**2;
-    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    const R = 6371000;
+    const toRad = x => x * Math.PI/180;
+    const dLat = toRad(lat2-lat1);
+    const dLon = toRad(lng2-lng1);
+    const a = Math.sin(dLat/2)**2 + Math.cos(toRad(lat1))*Math.cos(toRad(lat2))*Math.sin(dLon/2)**2;
+    const c = 2*Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
     return Math.round(R * c);
 }
 
@@ -48,17 +48,7 @@ async function fetchUnitData() {
         const [unitsData, reportsData] = await Promise.all([unitsRes.json(), reportsRes.json()]);
         const unit = unitsData[unitId];
 
-        if (!unit) {
-            document.getElementById('unitStatus').innerText = 'Brak danych';
-            document.getElementById('assignedReport').innerText = 'Brak';
-            document.getElementById('distance').innerText = '0 m';
-            document.getElementById('reportTier').innerText = '-';
-            document.getElementById('reportContact').innerText = '-';
-            document.getElementById('reportDesc').innerText = '-';
-            if (unitMarker) unitMarker.remove();
-            if (reportMarker) reportMarker.remove();
-            return;
-        }
+        if (!unit) return resetUnitDisplay();
 
         // --- Status kolorowy ---
         const statusEl = document.getElementById('unitStatus');
@@ -72,18 +62,16 @@ async function fetchUnitData() {
         if (unit.lat != null && unit.lng != null) {
             const latlng = [unit.lat, unit.lng];
             if (!unitMarker) {
-                unitMarker = L.marker(latlng, {
-                    icon: L.icon({ iconUrl: 'https://cdn-icons-png.flaticon.com/512/149/149071.png', iconSize: [32,32] })
-                }).addTo(map).bindPopup(`Jednostka: ${unit.name}<br>Status: ${unit.status}`);
+                unitMarker = L.marker(latlng, { icon: L.icon({ iconUrl:'https://cdn-icons-png.flaticon.com/512/149/149071.png', iconSize:[32,32] })})
+                              .addTo(map).bindPopup(`Jednostka: ${unit.name}<br>Status: ${unit.status}`);
             } else unitMarker.setLatLng(latlng).setPopupContent(`Jednostka: ${unit.name}<br>Status: ${unit.status}`);
         }
 
         // --- Szukamy przypisanego zgłoszenia ---
-        let report = null;
-        if (unit.assignedReportId) report = reportsData.find(r => r.id === unit.assignedReportId);
-        if (!report) report = reportsData.find(r => r.assignedUnit === unitId);
+        let report = unit.assignedReportId ? reportsData.find(r => r.id===unit.assignedReportId) 
+                                           : reportsData.find(r => r.assignedUnit===unitId);
 
-        if (report && report.lat != null && report.lng != null) {
+        if (report && report.lat!=null && report.lng!=null) {
             document.getElementById('assignedReport').innerText = report.id;
             document.getElementById('reportTier').innerText = report.tier || '-';
             document.getElementById('reportContact').innerText = report.contact || '-';
@@ -91,39 +79,38 @@ async function fetchUnitData() {
 
             const reportLatLng = [report.lat, report.lng];
             if (!reportMarker) {
-                reportMarker = L.marker(reportLatLng, {
-                    icon: L.icon({ iconUrl: 'https://cdn-icons-png.flaticon.com/512/684/684908.png', iconSize: [32,32] })
-                }).addTo(map).bindPopup(`
-                    Zgłoszenie #${report.id}<br>
-                    Opis: ${report.description}<br>
-                    Status: ${report.status}<br>
-                    Kontakt: ${report.contact}
-                `);
-            } else {
-                reportMarker.setLatLng(reportLatLng).setPopupContent(`
-                    Zgłoszenie #${report.id}<br>
-                    Opis: ${report.description}<br>
-                    Status: ${report.status}<br>
-                    Kontakt: ${report.contact}
-                `);
-            }
+                reportMarker = L.marker(reportLatLng, { icon: L.icon({ iconUrl:'https://cdn-icons-png.flaticon.com/512/684/684908.png', iconSize:[32,32] })})
+                                .addTo(map)
+                                .bindPopup(`Zgłoszenie #${report.id}<br>Opis: ${report.description}<br>Status: ${report.status}<br>Kontakt: ${report.contact}`);
+            } else reportMarker.setLatLng(reportLatLng)
+                              .setPopupContent(`Zgłoszenie #${report.id}<br>Opis: ${report.description}<br>Status: ${report.status}<br>Kontakt: ${report.contact}`);
 
-            // --- Oblicz dystans ---
+            // --- Dystans ---
             const dist = calculateDistance(unit.lat, unit.lng, report.lat, report.lng);
             document.getElementById('distance').innerText = `${dist} m`;
 
-            // --- Opcjonalnie ustaw widok mapy ---
             map.setView(reportLatLng, 14);
-        } else {
-            document.getElementById('assignedReport').innerText = 'Brak';
-            document.getElementById('reportTier').innerText = '-';
-            document.getElementById('reportContact').innerText = '-';
-            document.getElementById('reportDesc').innerText = '-';
-            document.getElementById('distance').innerText = '0 m';
-            if (reportMarker) reportMarker.remove();
-        }
+        } else resetReportDisplay();
 
-    } catch (err) {
-        console.error('Błąd pobierania danych jednostki:', err);
-    }
+    } catch(err) { console.error('Błąd pobierania danych jednostki:', err); }
+}
+
+function resetUnitDisplay() {
+    document.getElementById('unitStatus').innerText='Brak danych';
+    document.getElementById('assignedReport').innerText='Brak';
+    document.getElementById('distance').innerText='0 m';
+    document.getElementById('reportTier').innerText='-';
+    document.getElementById('reportContact').innerText='-';
+    document.getElementById('reportDesc').innerText='-';
+    if (unitMarker) unitMarker.remove();
+    if (reportMarker) reportMarker.remove();
+}
+
+function resetReportDisplay() {
+    document.getElementById('assignedReport').innerText='Brak';
+    document.getElementById('distance').innerText='0 m';
+    document.getElementById('reportTier').innerText='-';
+    document.getElementById('reportContact').innerText='-';
+    document.getElementById('reportDesc').innerText='-';
+    if (reportMarker) reportMarker.remove();
 }
