@@ -3,20 +3,20 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Dyspozytor – Jednostka</title>
+<title>Policja – Jednostka</title>
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
 
-<!-- Ekran logowania -->
+<!-- Logowanie -->
 <div id="loginScreen" class="screen">
     <h2>Logowanie jednostki</h2>
     <input type="text" id="unitIdInput" placeholder="Wpisz ID jednostki">
     <button id="loginBtn">Zaloguj</button>
 </div>
 
-<!-- Ekran jednostki -->
+<!-- Dashboard jednostki -->
 <div id="unitScreen" class="screen" style="display:none;">
     <div id="unitHeader">
         <div><strong>Jednostka:</strong> <span id="unitName"></span></div>
@@ -27,6 +27,7 @@
         <div><strong>Kontakt:</strong> <span id="reportContact">-</span></div>
         <div><strong>Opis:</strong> <span id="reportDesc">-</span></div>
     </div>
+    
     <div id="map"></div>
 </div>
 
