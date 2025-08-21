@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Dyspozytor – Jednostka</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<link rel="stylesheet" href="style.css">
+
+<!-- PWA Manifest -->
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#007bff">
+<style>
+  body { font-family: Arial, sans-serif; margin:0; padding:0; background:#f5f7fa; }
+  #loginScreen, #unitScreen { display:flex; flex-direction:column; align-items:center; justify-content:center; height:100vh; }
+  input { padding:10px; margin:10px 0; width:200px; border-radius:5px; border:1px solid #ccc; }
+  button { padding:10px 20px; border:none; border-radius:5px; background:#007bff; color:white; cursor:pointer; font-weight:bold; }
+  button:hover { background:#0056b3; }
+  #map { width:90%; height:60vh; margin-top:20px; border-radius:10px; }
+  h2 { color:#007bff; }
+  p { font-size:1.1em; }
+</style>
+</head>
+<body>
+
+<div id="loginScreen">
+    <h2>Logowanie jednostki</h2>
+    <input type="text" id="unitIdInput" placeholder="Wpisz ID jednostki">
+    <button id="loginBtn">Zaloguj</button>
+</div>
+
+<div id="unitScreen" style="display:none;">
+    <h2>Jednostka: <span id="unitName"></span></h2>
+    <p>Status: <span id="unitStatus"></span></p>
+    <p>Przypisana do zgłoszenia: <span id="assignedReport">Brak</span></p>
+    <div id="map"></div>
+</div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
