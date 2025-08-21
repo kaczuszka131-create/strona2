@@ -29,11 +29,11 @@ function initMap() {
 // --- Obliczanie dystansu ---
 function calculateDistance(lat1, lng1, lat2, lng2) {
     const R = 6371000;
-    const toRad = x => x * Math.PI/180;
-    const dLat = toRad(lat2-lat1);
-    const dLon = toRad(lng2-lng1);
-    const a = Math.sin(dLat/2)**2 + Math.cos(toRad(lat1))*Math.cos(toRad(lat2))*Math.sin(dLon/2)**2;
-    const c = 2*Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+    const toRad = x => x * Math.PI / 180;
+    const dLat = toRad(lat2 - lat1);
+    const dLon = toRad(lng2 - lng1);
+    const a = Math.sin(dLat/2)**2 + Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon/2)**2;
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
     return Math.round(R * c);
 }
 
@@ -58,13 +58,16 @@ async function fetchUnitData() {
         else if (unit.status === 'Zajęty') statusEl.classList.add('busy');
         else if (unit.status === 'W drodze') statusEl.classList.add('onroute');
 
-        // --- Marker jednostki ---
+        // --- Marker jednostki jako niebieska kropka ---
         if (unit.lat != null && unit.lng != null) {
             const latlng = [unit.lat, unit.lng];
             if (!unitMarker) {
-                unitMarker = L.marker(latlng, { icon: L.icon({ iconUrl:'https://cdn-icons-png.flaticon.com/512/149/149071.png', iconSize:[32,32] })})
-                              .addTo(map).bindPopup(`Jednostka: ${unit.name}<br>Status: ${unit.status}`);
-            } else unitMarker.setLatLng(latlng).setPopupContent(`Jednostka: ${unit.name}<br>Status: ${unit.status}`);
+                unitMarker = L.circleMarker(latlng, { radius: 10, color: 'blue', fillColor: 'blue', fillOpacity: 0.8 })
+                              .addTo(map)
+                              .bindPopup(`Jednostka: ${unit.name}<br>Status: ${unit.status}`);
+            } else {
+                unitMarker.setLatLng(latlng).setPopupContent(`Jednostka: ${unit.name}<br>Status: ${unit.status}`);
+            }
         }
 
         // --- Szukamy przypisanego zgłoszenia ---
@@ -78,12 +81,21 @@ async function fetchUnitData() {
             document.getElementById('reportDesc').innerText = report.description || '-';
 
             const reportLatLng = [report.lat, report.lng];
+
+            // --- Kolor w zależności od tieru ---
+            let reportColor = 'green'; // domyślnie Tier 1
+            if (report.tier === 2) reportColor = 'orange';
+            else if (report.tier === 3) reportColor = 'red';
+
             if (!reportMarker) {
-                reportMarker = L.marker(reportLatLng, { icon: L.icon({ iconUrl:'https://cdn-icons-png.flaticon.com/512/684/684908.png', iconSize:[32,32] })})
-                                .addTo(map)
-                                .bindPopup(`Zgłoszenie #${report.id}<br>Opis: ${report.description}<br>Status: ${report.status}<br>Kontakt: ${report.contact}`);
-            } else reportMarker.setLatLng(reportLatLng)
-                              .setPopupContent(`Zgłoszenie #${report.id}<br>Opis: ${report.description}<br>Status: ${report.status}<br>Kontakt: ${report.contact}`);
+                reportMarker = L.circleMarker(reportLatLng, { radius: 8, color: reportColor, fillColor: reportColor, fillOpacity: 0.8 })
+                                 .addTo(map)
+                                 .bindPopup(`Zgłoszenie #${report.id}<br>Opis: ${report.description}<br>Status: ${report.status}<br>Kontakt: ${report.contact}`);
+            } else {
+                reportMarker.setLatLng(reportLatLng)
+                            .setStyle({ color: reportColor, fillColor: reportColor })
+                            .setPopupContent(`Zgłoszenie #${report.id}<br>Opis: ${report.description}<br>Status: ${report.status}<br>Kontakt: ${report.contact}`);
+            }
 
             // --- Dystans ---
             const dist = calculateDistance(unit.lat, unit.lng, report.lat, report.lng);
